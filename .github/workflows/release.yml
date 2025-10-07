@@ -1,0 +1,68 @@
+name: Release CPython
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-python:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            zlib1g-dev \
+            libncurses5-dev \
+            libgdbm-dev \
+            libnss3-dev \
+            libssl-dev \
+            libreadline-dev \
+            libffi-dev \
+            libsqlite3-dev \
+            wget \
+            curl \
+            lzma \
+            liblzma-dev \
+            tk-dev \
+            libbz2-dev \
+            dpkg-dev \
+            dh-make \
+            fakeroot \
+            devscripts \
+            checkinstall
+
+      - name: Configure build
+        run: |
+          ./configure --enable-optimizations --prefix=/usr/local
+
+      - name: Build Python
+        run: |
+          make -j$(nproc)
+
+      - name: Package into .deb
+        run: |
+          sudo checkinstall --pkgname=python3.13 \
+            --pkgversion="3.13.7" \
+            --backup=no \
+            --deldoc=yes \
+            --fstrans=no \
+            --default make altinstall
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-deb
+          path: ./*.deb
+
+      - name: Upload binary to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
